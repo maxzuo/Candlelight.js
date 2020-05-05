@@ -2,12 +2,12 @@ window.candle = (() => {
 
     class Candle {
         constructor(high, low, open, close, dayDip, prevDip) {
-            this.high = high;
-            this.low = low;
-            this.open = open;
-            this.close = close;
-            this.dayDip = dayDip;
-            this.prevDip = prevDip;
+            this.high = high
+            this.low = low
+            this.open = open
+            this.close = close
+            this.dayDip = dayDip
+            this.prevDip = prevDip
         }
     }
     class CandleChart {
@@ -23,10 +23,12 @@ window.candle = (() => {
                 count: 0
             }
             this._annotations = []
-            this._background_color = 'white'
 
             this._chart = null
+            this._infobox = null
 
+            // Design presets
+            this._background_color = 'white'
             this._lineWidth = 1.5
             this._minimumCandleWidth = 4
             this._maximumCandleWidth = 20
@@ -48,8 +50,11 @@ window.candle = (() => {
          * Currently supports 'stripes' and null/'none'
          * @param {string} style
          */
-        setBackgroundStyle = (style) => {
-            this._background_style = style
+        setBackgroundStyle = (style, color) => {
+            this._background_style = {
+                style: style,
+                color: color
+            }
         }
 
         /**
@@ -131,25 +136,26 @@ window.candle = (() => {
             const candleStep = (this._width) / this._data.count
 
             // Preset background colors
+            
             chart.setAttribute('style', "background-color: " + this._background_color)
 
             // Set background style
-            if (this._background_style == 'stripes') {
-                
+            if (this._background_style && this._background_style.style == 'stripes') {
+                let color = "white"
+                if (this._background_style.color)
+                    color = this._background_style.color
+
                 for (let i = 0; i < this._data.count / 5; i+=2) {
-                    console.log(i);
                     let stripe = document.createElementNS(chartNS, 'rect')
                     stripe.setAttribute('x', candleStep * i * 5)
                     stripe.setAttribute('width', candleStep * 5)
                     stripe.setAttribute('y', '0')
                     stripe.setAttribute('height', this._height)
 
-                    stripe.setAttribute('style', "fill: white; stroke_width:0; stroke:0;")
+                    stripe.setAttribute('style', "fill: " + color + "; stroke_width:0; stroke:0;")
 
                     chart.appendChild(stripe)
                 }
-            } else {
-                
             }
             
 
@@ -189,9 +195,136 @@ window.candle = (() => {
                 
             })
 
+            chart.addEventListener("mousemove", this.mouseMoveShowPrices)
 
             this._chart = chart
             return chart
+        }
+
+        mouseMoveShowPrices = (e) => {
+            if (!this._chart) return
+
+            let normalize = (price) => (price - this._data.min) / (this._data.max - this._data.min)
+            let point = (x, y) => x + "," + y + " "
+
+            const candleStep = (this._width) / this._data.count
+            
+            // Build floating information box
+            const boxWidth = 200
+            const boxHeight = 150
+            const fontsize = 20
+
+            let mouseX = e.offsetX
+            let mouseY = e.offsetY
+            
+            // Get candle mouse is pointing to
+            let candleIndex = Math.floor(mouseX / candleStep)
+
+            // If out of bounds, reset and exit
+            if (candleIndex < 0 || candleIndex >= this._data.count) {
+                if (this._infobox)
+                    this._chart.removeChild(this._infobox)
+                    this._infobox = null
+                return
+            }
+
+            let selectedCandle = this._candles[candleIndex]
+
+            const highY = (1 - normalize(selectedCandle.high)) * this._height
+            const lowY = (1 - normalize(selectedCandle.low)) * this._height
+
+            
+
+            // Check if mouse is near ticker
+            if (mouseY < highY - 0.01 * this._height || mouseY > lowY + 0.01 * this._height) {
+                if (this._infobox)
+                    this._chart.removeChild(this._infobox)
+                    this._infobox = null
+                return
+            }
+
+            let highString = `High:  ${selectedCandle.high.toFixed(2)}`
+            let lowString = `Low:   ${selectedCandle.low.toFixed(2)}`
+            let openString = `Open: ${selectedCandle.open.toFixed(2)}`
+            let closeString = `Close: ${selectedCandle.close.toFixed(2)}`
+
+            let detailStrings = [highString, lowString, openString, closeString]
+
+            let boxX;
+            let boxY;
+
+            if (mouseX > this._width - (boxWidth + 20)) {
+                boxX = mouseX - boxWidth
+            } else {
+                boxX = mouseX + 20
+            }
+
+            if (mouseY > this._height - (boxHeight + 20)) {
+                boxY = mouseY - (boxHeight + 20)
+            } else {
+                boxY = mouseY
+            }
+
+            if (this._infobox) {
+
+                let [backgroundBox, ...textBoxes] = this._infobox.children
+
+                backgroundBox.setAttribute('x', boxX)
+                backgroundBox.setAttribute('y', boxY)
+
+                textBoxes.forEach((textBox, i) => {
+                    textBox.setAttribute('x', boxX + 5)
+                    textBox.setAttribute('y', boxY + (i + 0.5) * fontsize * 2)
+                    textBox.textContent = detailStrings[i]
+                })
+            } else {
+                // Create infobox container
+                let infobox = document.createElementNS(this._chart.namespaceURI, "g")
+                let infoNS = infobox.namespaceURI
+
+
+                // Create background box
+                let backgroundBox = document.createElementNS(infoNS, "rect")
+                backgroundBox.setAttribute('x', boxX)
+                backgroundBox.setAttribute('y', boxY)
+
+                backgroundBox.setAttribute('width', boxWidth)
+                backgroundBox.setAttribute('height', boxHeight)
+
+                backgroundBox.setAttribute('style', `
+                    fill:black;
+                    opacity: 65%;
+                    moz-opacity: 65%;
+
+                `)
+
+                infobox.appendChild(backgroundBox)
+
+                // Create texts
+
+                let i = 0.5
+
+                let infoTextBox = (str) => {
+                    let textBox = document.createElementNS(infoNS, "text")
+                    textBox.textContent = str
+                    textBox.setAttribute('x', boxX + 5)
+                    textBox.setAttribute('y', boxY + i++ * fontsize * 2)
+                    textBox.setAttribute('font-size', fontsize)
+                    textBox.setAttribute('fill', 'white')
+                    textBox.setAttribute('font-family', 'Verdana')
+                    return textBox
+                }
+
+                detailStrings.forEach((s) => {
+                    infobox.appendChild(infoTextBox(s))
+                })
+                
+                this._infobox = infobox
+
+                this._chart.appendChild(infobox)
+            }
+            
+            
         }
 
         /**
