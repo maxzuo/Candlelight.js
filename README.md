@@ -10,6 +10,8 @@ Candlelight makes incorporating interactive candlestick stock charts into your w
 ### Interactive components
 CandleCharts supports plugins for hover and drag events. The default hovering event will display exact details about a given "candlestick" (the day's high, low, open, close).
 
+![demo chart](img/demo.png "Demo Chart")
+
 ## Usage
 Include the `candlelight.js` file in the `<head></head>` section of your code, with the following line of code:
 ```html
