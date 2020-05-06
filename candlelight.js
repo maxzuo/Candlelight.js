@@ -1,13 +1,34 @@
 window.candle = (() => {
 
     class Candle {
-        constructor(high, low, open, close, dayDip, prevDip) {
+        constructor(date, high, low, open, close, volume, dayDip, prevDip) {
             this.high = high
             this.low = low
             this.open = open
             this.close = close
             this.dayDip = dayDip
             this.prevDip = prevDip
+            this.volume = volume
+
+            if (typeof(date) == "string") {
+                try {
+                    this.date = new Date(date)
+                } catch(e) {
+                    this.date = date
+                }
+                
+            } else if (date instanceof Date) {
+                this.date = date
+            } else {
+                this.date = null
+            }
+        }
+    }
+
+    class CandleAnnotation {
+        constructor(annotationType, color) {
+            this.annotationType = annotationType
+            this.color = color
         }
     }
     class CandleChart {
@@ -22,6 +43,9 @@ window.candle = (() => {
                 min: 0.0,
                 count: 0
             }
+            this.date = null
+            this.volume = null
+
             this._annotations = []
 
             this._chart = null
@@ -30,8 +54,8 @@ window.candle = (() => {
             // Design presets
             this._background_color = 'white'
             this._lineWidth = 1.5
-            this._minimumCandleWidth = 4
-            this._maximumCandleWidth = 20
+            this._minimumCandleWidth = 6
+            this._maximumCandleWidth = 30
             this._background_style = null
         }
 
@@ -67,11 +91,14 @@ window.candle = (() => {
             this._lineWidth = width
         }
 
-        // High, Low, Open, Close
         /**
          * Load stock data for viewing
          * 
-         * Use: HLOC
+         * Data format either:
+         * [High, Low, Open, Close]
+         * Or
+         * [Date, High, Low, Open, Close, Volume]
+         * 
          * @param {number[][]} data
          */
         loadData = (data) => {
@@ -79,17 +106,21 @@ window.candle = (() => {
                 throw Error("Bad data provided")
             this._candles = []
 
-            this._data.max = 0.0
-            this._data.min = data[0][0]
+            this._data.max = null
+            this._data.min = null
             this._data.count = data.length
 
             for (let i = 0; i < data.length; i++) {
+                let dDate, dhigh, dlow, dopen, dclose, dVolume
+                if (data[i].length == 4)
+                    [dhigh, dlow, dopen, dclose] = data[i]
+                else if (data[i].length == 6) {
+                    [dDate, dhigh, dlow, dopen, dclose, dVolume] = data[i]
+                }
 
-                let [dhigh, dlow, dopen, dclose] = data[i]
-
-                if (dlow < this._data.min)
+                if (!this._data.min || dlow < this._data.min)
                     this._data.min = dlow;
-                if (dhigh > this._data.max)
+                if (!this._data.min || dhigh > this._data.max)
                     this._data.max = dhigh;
                 
                 let dayDip = false
@@ -105,7 +136,8 @@ window.candle = (() => {
                     }
                 }
 
-                this._candles.push(new Candle(dhigh, dlow, dopen, dclose, dayDip, prevDip))
+                let c  = new Candle(dDate, dhigh, dlow, dopen, dclose, dVolume, dayDip, prevDip)
+                this._candles.push(c)
             }
         }
 
@@ -119,9 +151,9 @@ window.candle = (() => {
          */
         draw = () => {
             this._chart = null
-            if (this._minimumCandleWidth * this._data.count > this._width)
+            if (this._minimumCandleWidth * this._data.count > this._width){
                 throw Error("Cannot draw within specified width: Not enough space")
-            
+            }
             let normalize = (price) => (price - this._data.min) / (this._data.max - this._data.min)
             let point = (x, y) => x + "," + y + " "
             
@@ -136,6 +168,7 @@ window.candle = (() => {
             const candleStep = (this._width) / this._data.count
 
             // Preset background colors
+            
             
             chart.setAttribute('style', "background-color: " + this._background_color)
 
@@ -184,7 +217,7 @@ window.candle = (() => {
                              + point(centerX + candleWidth / 2, bottomY)
                              + point(centerX + candleWidth / 2, topY)
                              + point(centerX, topY)
-
+                
                 let color = candleData.prevDip ? 'red' : 'black';
                 let fill = candleData.dayDip ? color: 'none';
 
@@ -212,7 +245,7 @@ window.candle = (() => {
             // Build floating information box
             const boxWidth = 200
             const boxHeight = 150
-            const fontsize = 20
+            const fontsize = 15
 
             let mouseX = e.offsetX
             let mouseY = e.offsetY
@@ -222,25 +255,46 @@ window.candle = (() => {
 
             // If out of bounds, reset and exit
             if (candleIndex < 0 || candleIndex >= this._data.count) {
-                if (this._infobox)
-                    this._chart.removeChild(this._infobox)
-                    this._infobox = null
+                if (this._infobox) {
+                    try {
+                        this._chart.removeChild(this._infobox)    
+                    } catch (error) {
+                        console.log(error)
+                    }
+                    
+                }
+                this._infobox = null
                 return
             }
 
             let selectedCandle = this._candles[candleIndex]
 
             const highY = (1 - normalize(selectedCandle.high)) * this._height
-            const lowY = (1 - normalize(selectedCandle.low)) * this._height
-
-            
+            const lowY = (1 - normalize(selectedCandle.low)) * this._height            
 
             // Check if mouse is near ticker
             if (mouseY < highY - 0.01 * this._height || mouseY > lowY + 0.01 * this._height) {
-                if (this._infobox)
-                    this._chart.removeChild(this._infobox)
-                    this._infobox = null
+                if (this._infobox) {
+                    try {
+                        this._chart.removeChild(this._infobox)    
+                    } catch (error) {
+                        console.log(error)
+                    }
+                }
+                this._infobox = null
                 return
+            }
+
+            let dateString
+
+            if (!selectedCandle.date) {
+                dateString = "N/A"
+            } else if (typeof(selectedCandle.date) == "string") {
+                dateString = selectedCandle.date
+            } else if (selectedCandle.date instanceof Date) {
+                dateString = selectedCandle.date.toLocaleDateString()
+            } else {
+                dateString = "N/A"
             }
 
             let highString = `High:  ${selectedCandle.high.toFixed(2)}`
@@ -248,7 +302,9 @@ window.candle = (() => {
             let openString = `Open: ${selectedCandle.open.toFixed(2)}`
             let closeString = `Close: ${selectedCandle.close.toFixed(2)}`
 
-            let detailStrings = [highString, lowString, openString, closeString]
+            let volumeString = `Volume:  ${selectedCandle.volume.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || "N/A"}`
+
+            let detailStrings = [dateString, highString, lowString, openString, closeString, volumeString]
 
             let boxX;
             let boxY;
@@ -274,7 +330,7 @@ window.candle = (() => {
 
                 textBoxes.forEach((textBox, i) => {
                     textBox.setAttribute('x', boxX + 5)
-                    textBox.setAttribute('y', boxY + (i + 0.5) * fontsize * 2)
+                    textBox.setAttribute('y', boxY + (i + 0.8) * fontsize * 1.6)
                     textBox.textContent = detailStrings[i]
                 })
             } else {
@@ -373,7 +429,7 @@ window.candle = (() => {
 
     let candle = {
         Chart: (width, height) => {
-            if (!height || !width || height <= 0 || width <= 0)
+            if (!height || !width || height < 0 || width < 0)
                 return null
             
             return new CandleChart(width, height)
