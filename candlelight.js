@@ -1,7 +1,7 @@
 window.candle = (() => {
 
     class Candle {
-        constructor(date, high, low, open, close, volume, dayDip, prevDip) {
+        constructor(date, high, low, open, close, volume, dayDip, prevDip, tickerName) {
             this.high = high
             this.low = low
             this.open = open
@@ -10,6 +10,7 @@ window.candle = (() => {
             this.prevDip = prevDip
             this.volume = volume
 
+            this.tickerName = tickerName
             if (typeof(date) == "string") {
                 try {
                     this.date = new Date(date)
@@ -29,8 +30,11 @@ window.candle = (() => {
         constructor(annotationType, color) {
             this.annotationType = annotationType
             this.color = color
+            this.startDate
+            this.endDate
         }
     }
+
     class CandleChart {
         constructor(width, height) {
             this._width = width
@@ -94,10 +98,11 @@ window.candle = (() => {
         /**
          * Load stock data for viewing
          * 
-         * Data format either:
+         * Data format either: will be updated to an object in future versions
+         * 
          * [High, Low, Open, Close]
          * Or
-         * [Date, High, Low, Open, Close, Volume]
+         * [Date, High, Low, Open, Close, Volume, tickerName]
          * 
          * @param {number[][]} data
          */
@@ -111,13 +116,12 @@ window.candle = (() => {
             this._data.count = data.length
 
             for (let i = 0; i < data.length; i++) {
-                let dDate, dhigh, dlow, dopen, dclose, dVolume
+                let dDate, dhigh, dlow, dopen, dclose, dVolume, tickerName
                 if (data[i].length == 4)
                     [dhigh, dlow, dopen, dclose] = data[i]
-                else if (data[i].length == 6) {
-                    [dDate, dhigh, dlow, dopen, dclose, dVolume] = data[i]
+                else if (data[i].length == 7) {
+                    [dDate, dhigh, dlow, dopen, dclose, dVolume, tickerName] = data[i]
                 }
-
                 if (!this._data.min || dlow < this._data.min)
                     this._data.min = dlow;
                 if (!this._data.min || dhigh > this._data.max)
@@ -136,7 +140,7 @@ window.candle = (() => {
                     }
                 }
 
-                let c  = new Candle(dDate, dhigh, dlow, dopen, dclose, dVolume, dayDip, prevDip)
+                let c  = new Candle(dDate, dhigh, dlow, dopen, dclose, dVolume, dayDip, prevDip, tickerName)
                 this._candles.push(c)
             }
         }
@@ -292,7 +296,7 @@ window.candle = (() => {
             } else if (typeof(selectedCandle.date) == "string") {
                 dateString = selectedCandle.date
             } else if (selectedCandle.date instanceof Date) {
-                dateString = selectedCandle.date.toLocaleDateString()
+                dateString = `${selectedCandle.date.getUTCMonth() + 1}/${selectedCandle.date.getUTCDate()}/${selectedCandle.date.getUTCFullYear()}`
             } else {
                 dateString = "N/A"
             }
