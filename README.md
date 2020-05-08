@@ -13,7 +13,12 @@ CandleCharts supports plugins for hover and drag events. The default hovering ev
 ![demo chart](img/demo.png "Demo Chart")
 
 ## Usage
-Include the `candlelight.js` file in the `<head></head>` section of your code, with the following line of code:
+Currently, you can source this script using [jsDelivr](https://jsdelivr.com/) with the following line of code.
+```html
+<script src='https://cdn.jsdelivr.net/gh/maxzuo/candlelight.js@master/candlelight.js'></script>
+```
+
+Alernatively, you can download this repo and include the `candlelight.js` file in the `<head></head>` section of your code, with the following line of code:
 ```html
 <script src='candlelight.js'></script>
 ```
