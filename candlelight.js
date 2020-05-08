@@ -60,6 +60,10 @@ window.candle = (() => {
             this._minimumCandleWidth = 6
             this._maximumCandleWidth = 30
             this._background_style = null
+
+
+            // handlers
+            this.mousemovehandler = null
         }
 
         /**
@@ -253,7 +257,8 @@ window.candle = (() => {
         setMouseMove = (handler) => {
             let normalize = (price) => (price - this._data.min) / (this._data.max - this._data.min)
 
-            
+            this._chart.removeEventListener('mousemove', this.mousemovehandler)
+            this.mousemovehandler = handler
 
             this._chart.addEventListener('mousemove', (e) => {
 
