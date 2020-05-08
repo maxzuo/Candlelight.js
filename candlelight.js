@@ -27,11 +27,11 @@ window.candle = (() => {
     }
 
     class CandleAnnotation {
-        constructor(annotationType, color) {
+        constructor(annotationType, color, startDate, endDate) {
             this.annotationType = annotationType
             this.color = color
-            this.startDate
-            this.endDate
+            this.startDate = startDate
+            this.endDate = endDate
         }
     }
 
@@ -53,7 +53,6 @@ window.candle = (() => {
             this._annotations = []
 
             this._chart = null
-            this._infobox = null
 
             // Design presets
             this._background_color = 'white'
@@ -232,159 +231,48 @@ window.candle = (() => {
                 
             })
 
-            chart.addEventListener("mousemove", this.mouseMoveShowPrices)
+            // chart.addEventListener("mousemove", this.mouseMoveShowPrices)
 
             this._chart = chart
+            this.setMouseMove(mouseMoveShowPrices)
+
+            
             return chart
         }
 
-        mouseMoveShowPrices = (e) => {
-            if (!this._chart) return
-
+        /**
+         * Sets the `mousemove` handler method. Handler will be provided
+         * the mouse's position and the highlighted candle.
+         * 
+         * handler is provided with:
+         * candleChart, x, y, candle
+         * 
+         * @param {function} handler new mouseMove handler
+         * 
+         */
+        setMouseMove = (handler) => {
             let normalize = (price) => (price - this._data.min) / (this._data.max - this._data.min)
-            let point = (x, y) => x + "," + y + " "
 
-            const candleStep = (this._width) / this._data.count
             
-            // Build floating information box
-            const boxWidth = 200
-            const boxHeight = 150
-            const fontsize = 15
 
-            let mouseX = e.offsetX
-            let mouseY = e.offsetY
-            
-            // Get candle mouse is pointing to
-            let candleIndex = Math.floor(mouseX / candleStep)
+            this._chart.addEventListener('mousemove', (e) => {
 
-            // If out of bounds, reset and exit
-            if (candleIndex < 0 || candleIndex >= this._data.count) {
-                if (this._infobox) {
-                    try {
-                        this._chart.removeChild(this._infobox)    
-                    } catch (error) {
-                        console.log(error)
-                    }
-                    
-                }
-                this._infobox = null
-                return
-            }
+                let mouseX = e.offsetX
+                let mouseY = e.offsetY
 
-            let selectedCandle = this._candles[candleIndex]
+                const candleStep = (this._width) / this._data.count
 
-            const highY = (1 - normalize(selectedCandle.high)) * this._height
-            const lowY = (1 - normalize(selectedCandle.low)) * this._height            
-
-            // Check if mouse is near ticker
-            if (mouseY < highY - 0.01 * this._height || mouseY > lowY + 0.01 * this._height) {
-                if (this._infobox) {
-                    try {
-                        this._chart.removeChild(this._infobox)    
-                    } catch (error) {
-                        console.log(error)
-                    }
-                }
-                this._infobox = null
-                return
-            }
-
-            let dateString
-
-            if (!selectedCandle.date) {
-                dateString = "N/A"
-            } else if (typeof(selectedCandle.date) == "string") {
-                dateString = selectedCandle.date
-            } else if (selectedCandle.date instanceof Date) {
-                dateString = `${selectedCandle.date.getUTCMonth() + 1}/${selectedCandle.date.getUTCDate()}/${selectedCandle.date.getUTCFullYear()}`
-            } else {
-                dateString = "N/A"
-            }
-
-            let highString = `High:  ${selectedCandle.high.toFixed(2)}`
-            let lowString = `Low:   ${selectedCandle.low.toFixed(2)}`
-            let openString = `Open: ${selectedCandle.open.toFixed(2)}`
-            let closeString = `Close: ${selectedCandle.close.toFixed(2)}`
-
-            let volumeString = `Volume:  ${selectedCandle.volume.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || "N/A"}`
-
-            let detailStrings = [dateString, highString, lowString, openString, closeString, volumeString]
-
-            let boxX;
-            let boxY;
-
-            if (mouseX > this._width - (boxWidth + 20)) {
-                boxX = mouseX - boxWidth
-            } else {
-                boxX = mouseX + 20
-            }
-
-            if (mouseY > this._height - (boxHeight + 20)) {
-                boxY = mouseY - (boxHeight + 20)
-            } else {
-                boxY = mouseY
-            }
-
-            if (this._infobox) {
-
-                let [backgroundBox, ...textBoxes] = this._infobox.children
-
-                backgroundBox.setAttribute('x', boxX)
-                backgroundBox.setAttribute('y', boxY)
-
-                textBoxes.forEach((textBox, i) => {
-                    textBox.setAttribute('x', boxX + 5)
-                    textBox.setAttribute('y', boxY + (i + 0.8) * fontsize * 1.6)
-                    textBox.textContent = detailStrings[i]
-                })
-            } else {
-                // Create infobox container
-                let infobox = document.createElementNS(this._chart.namespaceURI, "g")
-                let infoNS = infobox.namespaceURI
-
-
-                // Create background box
-                let backgroundBox = document.createElementNS(infoNS, "rect")
-                backgroundBox.setAttribute('x', boxX)
-                backgroundBox.setAttribute('y', boxY)
-
-                backgroundBox.setAttribute('width', boxWidth)
-                backgroundBox.setAttribute('height', boxHeight)
-
-                backgroundBox.setAttribute('style', `
-                    fill:black;
-                    opacity: 65%;
-                    moz-opacity: 65%;
-
-                `)
-
-                infobox.appendChild(backgroundBox)
-
-                // Create texts
-
-                let i = 0.5
-
-                let infoTextBox = (str) => {
-                    let textBox = document.createElementNS(infoNS, "text")
-                    textBox.textContent = str
-                    textBox.setAttribute('x', boxX + 5)
-                    textBox.setAttribute('y', boxY + i++ * fontsize * 2)
-                    textBox.setAttribute('font-size', fontsize)
-                    textBox.setAttribute('fill', 'white')
-                    textBox.setAttribute('font-family', 'Verdana')
-                    return textBox
-                }
-
-                detailStrings.forEach((s) => {
-                    infobox.appendChild(infoTextBox(s))
-                })
+                let candleIndex = Math.floor(mouseX / candleStep)
+                let selectedCandle
                 
-                this._infobox = infobox
+                if (candleIndex < 0 || candleIndex >= candleChart._data.count) {
+                    selectedCandle = null
+                } else {
+                    selectedCandle = this._candles[candleIndex]
+                } 
 
-                this._chart.appendChild(infobox)
-            }
-            
-            
+                handler(this, mouseX, mouseY, selectedCandle)
+            })
         }
 
         /**
@@ -411,7 +299,7 @@ window.candle = (() => {
          * @param {number} newWidth
          */
         set width(newWidth) {
-            return
+            this._width = newWidth
         }
 
         get width() {
@@ -422,7 +310,7 @@ window.candle = (() => {
          * @param {number} newHeight
          */
         set height(newHeight) {
-            return
+            this._height = newHeight
         }
 
         get height() {
@@ -431,13 +319,148 @@ window.candle = (() => {
         
     }
 
+    let mouseMoveShowPrices = (candleChart, x, y, selectedCandle) => {
+
+        if (!candleChart._chart) return
+        let normalize = (price) => (price - candleChart._data.min) / (candleChart._data.max - candleChart._data.min)
+        
+        // Build floating information box
+        const boxWidth = 220
+        const boxHeight = 150
+        const fontsize = 15
+        
+        // Get candle mouse is pointing to
+
+        // If out of bounds, reset and exit
+        if (!selectedCandle) {
+            if (mouseMoveShowPrices.infobox) {
+                try {
+                    candleChart._chart.removeChild(mouseMoveShowPrices.infobox)    
+                } catch (error) {
+                    console.log(error)
+                }
+            }
+            mouseMoveShowPrices.infobox = null
+            return
+        }
+
+        const highY = (1 - normalize(selectedCandle.high)) * candleChart.height
+        const lowY = (1 - normalize(selectedCandle.low)) * candleChart.height
+
+        // Check if mouse is near ticker
+        if (y < highY - 0.01 * candleChart.height || y > lowY + 0.01 * candleChart.height) {
+            if (mouseMoveShowPrices.infobox) {
+                try {
+                    candleChart._chart.removeChild(mouseMoveShowPrices.infobox)    
+                } catch (error) {
+                    console.log(error)
+                }
+            }
+            mouseMoveShowPrices.infobox = null
+            return
+        }
+
+        let dateString
+
+        if (!selectedCandle.date) {
+            dateString = "N/A"
+        } else if (typeof(selectedCandle.date) == "string") {
+            dateString = selectedCandle.date
+        } else if (selectedCandle.date instanceof Date) {
+            dateString = `${selectedCandle.date.getUTCMonth() + 1}/${selectedCandle.date.getUTCDate()}/${selectedCandle.date.getUTCFullYear()}`
+        } else {
+            dateString = "N/A"
+        }
+
+        let highString = `High:  ${selectedCandle.high.toFixed(2)}`
+        let lowString = `Low:   ${selectedCandle.low.toFixed(2)}`
+        let openString = `Open: ${selectedCandle.open.toFixed(2)}`
+        let closeString = `Close: ${selectedCandle.close.toFixed(2)}`
+
+        let volumeString = `Volume:  ${selectedCandle.volume.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || "N/A"}`
+
+        let detailStrings = [dateString, highString, lowString, openString, closeString, volumeString]
+
+        let boxX, boxY
+
+        if (x > candleChart.width - (boxWidth + 20)) {
+            boxX = x - boxWidth
+        } else {
+            boxX = x + 20
+        }
+
+        if (y > candleChart.width - (boxHeight + 20)) {
+            boxY = y - (boxHeight + 20)
+        } else {
+            boxY = y
+        }
+
+        if (mouseMoveShowPrices.infobox) {
+
+            let [backgroundBox, ...textBoxes] = mouseMoveShowPrices.infobox.children
+
+            backgroundBox.setAttribute('x', boxX)
+            backgroundBox.setAttribute('y', boxY)
+
+            textBoxes.forEach((textBox, i) => {
+                textBox.setAttribute('x', boxX + 5)
+                textBox.setAttribute('y', boxY + (i + 0.8) * fontsize * 1.6)
+                textBox.textContent = detailStrings[i]
+            })
+        } else {
+            // Create infobox container
+            let infobox = document.createElementNS(candleChart._chart.namespaceURI, "g")
+            let infoNS = infobox.namespaceURI
+
+            // Create background box
+            let backgroundBox = document.createElementNS(infoNS, "rect")
+            backgroundBox.setAttribute('x', boxX)
+            backgroundBox.setAttribute('y', boxY)
+
+            backgroundBox.setAttribute('width', boxWidth)
+            backgroundBox.setAttribute('height', boxHeight)
+
+            backgroundBox.setAttribute('style', `
+                fill:black;
+                opacity: 65%;
+                moz-opacity: 65%;
+
+            `)
+
+            infobox.appendChild(backgroundBox)
+
+            // Create texts
+            let i = 0.5
+
+            let infoTextBox = (str) => {
+                let textBox = document.createElementNS(infoNS, "text")
+                textBox.textContent = str
+                textBox.setAttribute('x', boxX + 5)
+                textBox.setAttribute('y', boxY + i++ * fontsize * 2)
+                textBox.setAttribute('font-size', fontsize)
+                textBox.setAttribute('fill', 'white')
+                textBox.setAttribute('font-family', 'Verdana')
+                return textBox
+            }
+
+            detailStrings.forEach((s) => {
+                infobox.appendChild(infoTextBox(s))
+            })
+            
+            mouseMoveShowPrices.infobox = infobox
+
+            candleChart._chart.appendChild(infobox)
+        }
+    }
+
     let candle = {
         Chart: (width, height) => {
             if (!height || !width || height < 0 || width < 0)
                 return null
             
             return new CandleChart(width, height)
-        }
+        },
+        mouseMoveShowPrices: mouseMoveShowPrices
     }
 
     return candle
