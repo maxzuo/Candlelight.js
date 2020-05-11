@@ -256,11 +256,9 @@ window.candle = (() => {
          */
         setMouseMove = (handler) => {
             let normalize = (price) => (price - this._data.min) / (this._data.max - this._data.min)
-
+            
             this._chart.removeEventListener('mousemove', this.mousemovehandler)
-            this.mousemovehandler = handler
-
-            this._chart.addEventListener('mousemove', (e) => {
+            this.mousemovehandler =  (e) => {
 
                 let mouseX = e.offsetX
                 let mouseY = e.offsetY
@@ -270,14 +268,96 @@ window.candle = (() => {
                 let candleIndex = Math.floor(mouseX / candleStep)
                 let selectedCandle
                 
-                if (candleIndex < 0 || candleIndex >= candleChart._data.count) {
+                if (candleIndex < 0 || candleIndex >= this._data.count) {
                     selectedCandle = null
                 } else {
                     selectedCandle = this._candles[candleIndex]
                 } 
 
                 handler(this, mouseX, mouseY, selectedCandle)
-            })
+            }
+
+            this._chart.addEventListener('mousemove', this.mousemovehandler)
+        }
+
+        /**
+         * Sets the new drag handler for the chart.
+         * 
+         * @param {function} start new dragStart handler
+         * @param {function} during new dragDuring handler
+         * @param {function} completion new dragCompletion handler
+         */
+        setMouseDrag = ({start=() => {}, during=() => {}, completion=() => {}} = {}) => {
+            let startX, startY, startCandle, endX, endY, endCandle, down
+            
+            this._chart.removeEventListener('mousedown', this.dragStartHandler)
+            this._chart.removeEventListener('mouseup', this.dragCompletionHandler)
+            this._chart.removeEventListener('mousemove', this.dragDuringHandler)
+
+
+            const candleStep = (this._width) / this._data.count
+
+            // Helper wrapper method for drag during handler
+            
+            this.dragStartHandler = (e) => {
+                startX = e.offsetX
+                startY = e.offsetY
+
+                down = true
+
+                let candleIndex = Math.floor(startX / candleStep)
+                
+                if (candleIndex < 0 || candleIndex >= this._data.count) {
+                    startCandle = null
+                } else {
+                    startCandle = this._candles[candleIndex]
+                }
+
+                start(this, startX, startY, startCandle)
+            }
+
+
+            // Helper wrapper method for drag during handler
+            this.dragDuringHandler = (e) => {
+                if (!down) return
+                let x = e.offsetX
+                let y = e.offsetY
+                let candle
+
+                let candleIndex = Math.floor(x / candleStep)
+
+                if (candleIndex < 0 || candleIndex >= this._data.count) {
+                    candle = null
+                } else {
+                    candle = this._candles[candleIndex]
+                }
+
+
+                during(this, startX, startY, startCandle, x, y, candle)
+            }
+
+            // Helper wrapper method for drag completion handler
+            this.dragCompletionHandler = (e) => {
+                endX = e.offsetX
+                endY = e.offsetY
+
+                down = false
+
+                let candleIndex = Math.floor(endX / candleStep)
+                
+                if (candleIndex < 0 || candleIndex >= this._data.count) {
+                    endCandle = null
+                } else {
+                    endCandle = this._candles[candleIndex]
+                }
+
+                completion(this, startX, startY, startCandle, endX, endY, endCandle)
+            }
+
+            this._chart.addEventListener('mousedown', this.dragStartHandler)
+            this._chart.addEventListener('mousemove', this.dragDuringHandler)
+            this._chart.addEventListener('mouseup', this.dragCompletionHandler)
+            
         }
 
         /**
