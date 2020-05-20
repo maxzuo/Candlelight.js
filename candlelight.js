@@ -235,9 +235,10 @@ window.candle = (() => {
                 
             })
 
-            // chart.addEventListener("mousemove", this.mouseMoveShowPrices)
-
             this._chart = chart
+
+
+            // Set default event handlers  
             this.setMouseMove(mouseMoveShowPrices)
 
             
@@ -538,6 +539,90 @@ window.candle = (() => {
         }
     }
 
+    let createHighlightBox = (parent, x, y, width, height, color="#ccf") => {
+        let ns = parent.namespaceURI
+
+        let box = document.createElementNS(ns, "rect")
+        box.setAttribute("x", x)
+        box.setAttribute("y", y)
+        
+        box.setAttribute("width", width)
+        box.setAttribute("height", height)
+
+        box.setAttribute("style", `
+            fill: ${color};
+            opacity: 35%;
+            moz-opacity: 35%;
+        `)
+
+        parent.appendChild(box)
+    }
+
+    let mouseDragSelectCandlesStart = (candleChart, sX, sY, sCandle, x, y, candle, color="#ccf") => {
+
+        if (!candleChart._chart) return candleChart, sX, sY, sCandle, x, y, candle
+
+        let highlightBoxes = document.createElementNS(candleChart._chart.namespaceURI, "g")
+        // let highlightNS = highlightBoxes.namespaceURI
+
+        highlightBoxes.setAttribute('name', "highlightMouseDragDefault")
+
+        let boxY = 0
+        let height = candleChart._height
+        let width = (candleChart._width) / candleChart._data.count
+        let boxX = candleChart._candles.indexOf(sCandle) * width
+
+        createHighlightBox(highlightBoxes, boxX, boxY, width * 1.1, height, color)
+        
+        candleChart._chart.appendChild(highlightBoxes)
+
+        mouseDragSelectCandlesStart.highlightBoxes = highlightBoxes
+        
+        return candleChart, sX, sY, sCandle, x, y, candle
+    }
+
+    let mouseDragSelectCandlesDuring = (candleChart, sX, sY, sCandle, x, y, candle, color="#ccf") => {
+        if (!candleChart._chart) return candleChart, sX, sY, sCandle, x, y, candle
+        
+        let highlightBoxes = mouseDragSelectCandlesStart.highlightBoxes
+
+        let boxY = 0
+        let height = candleChart._height
+        let width = (candleChart._width) / candleChart._data.count
+        
+        let boxX = candleChart._candles.indexOf(candle) * width
+        let startBoxX = candleChart._candles.indexOf(sCandle) * width
+
+        if (!Math.floor(boxX - startBoxX)) return
+        
+        // let drawn = false
+
+        highlightBoxes.innerHTML = ""
+
+        const step = boxX < startBoxX ? width : -width
+
+        for (let i = boxX; Math.abs(Math.floor(i - startBoxX)) > width / 2; i += step) {
+            createHighlightBox(highlightBoxes, i, boxY, width * 1.1, height, color)
+        }
+
+        createHighlightBox(highlightBoxes, startBoxX, boxY, width * 1.1, height, color)
+    }
+
+    let mouseDragSelectCandlesCompletion = (candleChart, sX, sY, sCandle, x, y, candle, color="#ccf") => {
+        if (!candleChart._chart) return candleChart, sX, sY, sCandle, x, y, candle
+
+
+        // Delete selected candle boxes
+        while (document.getElementsByName("highlightMouseDragDefault").length) // while loop dangerous! Find alternative in future references
+            document.getElementsByName("highlightMouseDragDefault").forEach((el) => {
+                candleChart._chart.removeChild(el)
+            })
+        
+
+        return candleChart, sX, sY, sCandle, x, y, candle
+    }
+
+
     let candle = {
         Chart: (width, height) => {
             if (!height || !width || height < 0 || width < 0)
@@ -545,7 +630,17 @@ window.candle = (() => {
             
             return new CandleChart(width, height)
         },
-        mouseMoveShowPrices: mouseMoveShowPrices
+        mouseMoveShowPrices: mouseMoveShowPrices,
+        setChartMouseDragDefault: (candleChart) => {
+            candleChart.setMouseDrag({
+                start: mouseDragSelectCandlesStart,
+                during: mouseDragSelectCandlesDuring,
+                completion: mouseDragSelectCandlesCompletion
+            })
+        },
+        mouseDragSelectCandlesStart: mouseDragSelectCandlesStart,
+        mouseDragSelectCandlesDuring: mouseDragSelectCandlesDuring,
+        mouseDragSelectCandlesCompletion: mouseDragSelectCandlesCompletion,
     }
 
     return candle
