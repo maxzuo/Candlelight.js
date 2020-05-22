@@ -24,6 +24,11 @@ window.candle = (() => {
                 this.date = null
             }
         }
+
+        toString() {
+            let dateString = `${this.date.getUTCMonth() + 1}/${this.date.getUTCDate()}/${this.date.getUTCFullYear()}`
+            return `Ticker: ${this.tickerName}\n\tDate: ${dateString}\n\tHigh: ${this.high}\n\tLow: ${this.low}\n\tOpen: ${this.open}\n\tClose: ${this.close}\n\tVolume: ${this.volume}\n`
+        }
     }
 
     class CandleAnnotation {
@@ -86,6 +91,31 @@ window.candle = (() => {
                 style: style,
                 color: color
             }
+        }
+
+        /**
+         * Gets the range of candles, provided start and end candle
+         * 
+         * Note: this will autoswap to the correct order
+         * 
+         * @param {Candle} sCandle the starting candle
+         * @param {Candle} eCandle the ending candle
+         * 
+         * @returns {Candle[]} candle range
+         */
+        getCandleRange = (sCandle, eCandle) => {
+            if (!(sCandle instanceof Candle) && !(eCandle instanceof Candle)) {
+                throw Error("getCandleRange requires 2 Candle instances!")
+            }
+
+            let sIndex = this._candles.indexOf(sCandle)
+            let eIndex = this._candles.indexOf(eCandle)
+
+            if (eIndex < sIndex) {
+                [sIndex, eIndex] = [eIndex, sIndex]
+            }
+
+            return this._candles.slice(sIndex, eIndex + 1)
         }
 
         /**
@@ -551,8 +581,8 @@ window.candle = (() => {
 
         box.setAttribute("style", `
             fill: ${color};
-            opacity: 35%;
-            moz-opacity: 35%;
+            opacity: 50%;
+            moz-opacity: 50%;
         `)
 
         parent.appendChild(box)
